@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>B-Boy Battle: AI vs Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Permanent+Marker&family=Noto+Sans+KR:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      body {
+        font-family: "Noto Sans KR", sans-serif;
+        background: #05050a;
+        color: #f3f4f6;
+      }
+      .font-arcade {
+        font-family: "Orbitron", sans-serif;
+      }
+      .font-graffiti {
+        font-family: "Permanent Marker", cursive;
+      }
+      .glass-card {
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .glow-cyan {
+        text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+      }
+      .glow-pink {
+        text-shadow: 0 0 10px rgba(236, 72, 153, 0.8);
+      }
+      .glow-gold {
+        text-shadow: 0 0 10px rgba(234, 179, 8, 0.8);
+      }
+      canvas {
+        touch-action: none;
+      }
+      .key-card {
+        transition: all 0.15s;
+        opacity: 0.9;
+      }
+      .key-card.active {
+        transform: scale(1.2);
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.9);
+        border-color: #38bdf8;
+        background: #0284c7;
+        color: #fff;
+        opacity: 1;
+        z-index: 5;
+      }
+      .key-card.success {
+        border-color: #22c55e;
+        background: #15803d;
+        color: #fff;
+        opacity: 0.3;
+        transform: scale(0.8);
+      }
+      .key-card.wrong {
+        animation: shake 0.3s;
+        border-color: #ef4444;
+        background: #991b1b;
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          margin-left: 0;
+        }
+        25% {
+          margin-left: -6px;
+        }
+        75% {
+          margin-left: 6px;
+        }
+      }
+      .pulse-text {
+        animation: pulse 1s infinite alternate;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1.05);
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col bg-slate-950">
+    <!-- 상단 헤더 -->
+    <header
+      class="glass-card sticky top-0 z-40 px-4 py-3 flex items-center justify-between"
+    >
+      <h1
+        class="font-graffiti text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-yellow-400"
+      >
+        B-BOY BATTLE VS AI
+      </h1>
+      <div class="flex space-x-2">
+        <button
+          id="soundToggleBtn"
+          onclick="toggleSound()"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold border border-slate-700"
+        >
+          <i id="soundIcon" class="fa-solid fa-volume-high text-cyan-400"></i>
+          <span id="soundLabel" class="hidden sm:inline">사운드 ON</span>
+        </button>
+        <button
+          onclick="restartGame()"
+          class="px-3 py-1.5 rounded-xl bg-cyan-600 text-xs font-bold text-white"
+        >
+          <i class="fa-solid fa-rotate-right"></i> 리셋
+        </button>
+      </div>
+    </header>
+
+    <main
+      class="flex-grow max-w-6xl w-full mx-auto p-2 sm:p-4 flex flex-col space-y-4"
+    >
+      <!-- 점수판 -->
+      <div class="grid grid-cols-3 gap-2 glass-card p-3 rounded-2xl">
+        <div class="flex flex-col items-center sm:items-start">
+          <div class="text-cyan-400 text-xs sm:text-sm font-bold">
+            <i class="fa-solid fa-user"></i> PLAYER (YOU)
+          </div>
+          <div
+            id="playerScore"
+            class="font-arcade text-2xl sm:text-4xl font-black text-cyan-300 glow-cyan"
+          >
+            0
+          </div>
+          <div
+            id="playerMoveText"
+            class="text-[11px] text-gray-400 truncate max-w-full"
+          >
+            대기 중...
+          </div>
+        </div>
+        <div class="flex flex-col items-center justify-center text-center">
+          <div class="text-[10px] text-gray-400 font-bold tracking-widest">
+            ROUND
+          </div>
+          <div>
+            <span
+              id="roundNumber"
+              class="font-arcade text-3xl sm:text-5xl font-black text-amber-400 glow-gold"
+              >1</span
+            ><span class="text-gray-500 font-bold text-lg"> / 10</span>
+          </div>
+          <div
+            id="turnBadge"
+            class="px-2.5 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-[10px] font-bold text-cyan-300"
+          >
+            READY
+          </div>
+        </div>
+        <div class="flex flex-col items-center sm:items-end">
+          <div class="text-pink-400 text-xs sm:text-sm font-bold">
+            AI DANCER <i class="fa-solid fa-robot"></i>
+          </div>
+          <div
+            id="aiScore"
+            class="font-arcade text-2xl sm:text-4xl font-black text-pink-400 glow-pink"
+          >
+            0
+          </div>
+          <div
+            id="aiMoveText"
+            class="text-[11px] text-gray-400 truncate max-w-full"
+          >
+            대기 중...
+          </div>
+        </div>
+      </div>
+
+      <!-- 무대 -->
+      <div
+        class="relative w-full aspect-[16/9] max-h-[520px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800"
+      >
+        <canvas
+          id="stageCanvas"
+          class="w-full h-full block absolute inset-0 z-0"
+        ></canvas>
+
+        <!-- 알파벳 키가 화면 곳곳에 배치되는 레이어 -->
+        <div
+          id="keyLayer"
+          class="absolute inset-0 z-10 pointer-events-none"
+        ></div>
+
+        <div
+          id="finalRoundBanner"
+          class="hidden absolute top-3 inset-x-0 mx-auto w-max px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-red-600 to-pink-600 text-white font-arcade font-black text-sm sm:text-lg z-20 pulse-text"
+        >
+          🔥 FINAL ROUND! 20 KEYS & 2X POINTS! 🔥
+        </div>
+
+        <div
+          id="skillRatingBox"
+          class="opacity-0 pointer-events-none absolute inset-0 flex items-center justify-center z-20 transition-all duration-300 scale-50"
+        >
+          <div class="text-center">
+            <div
+              id="skillRatingText"
+              class="font-graffiti text-4xl sm:text-6xl text-yellow-300 drop-shadow-lg"
+            >
+              PERFECT!
+            </div>
+            <div
+              id="skillMoveName"
+              class="font-arcade text-lg sm:text-2xl text-cyan-300 font-bold mt-1"
+            >
+              CRAZY WINDMILL
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="overlayScreen"
+          class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30"
+        >
+          <div
+            class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500 to-pink-500 text-white flex items-center justify-center text-4xl mb-4"
+          >
+            <i class="fa-solid fa-person-dancing"></i>
+          </div>
+          <h2
+            id="overlayTitle"
+            class="font-graffiti text-3xl sm:text-5xl text-white mb-2"
+          >
+            B-BOY DANCE BATTLE
+          </h2>
+          <p
+            id="overlayDesc"
+            class="text-xs sm:text-sm text-gray-300 max-w-md mb-6 leading-relaxed"
+          ></p>
+          <button
+            id="startBtn"
+            onclick="startGame()"
+            class="px-8 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-pink-500 text-white font-arcade font-black text-base sm:text-lg active:scale-95"
+          >
+            START BATTLE
+          </button>
+        </div>
+      </div>
+
+      <!-- 안내 / 타이머 -->
+      <div class="glass-card p-4 rounded-2xl flex flex-col space-y-3">
+        <div class="flex items-center justify-between text-xs sm:text-sm">
+          <span id="promptLabel" class="text-cyan-300 font-bold"
+            ><i class="fa-solid fa-keyboard"></i> 화면에 흩어진 키를 아무
+            순서로나 누르세요!</span
+          >
+          <span class="text-gray-400">
+            타임
+            <span id="timerText" class="font-arcade text-amber-400 font-bold"
+              >0.00s</span
+            >
+            · 키
+            <span id="keyCountBadge" class="font-arcade text-cyan-400 font-bold"
+              >6개</span
+            >
+          </span>
+        </div>
+        <div class="block sm:hidden pt-2 border-t border-slate-800">
+          <div class="text-[10px] text-gray-400 mb-1.5 text-center font-bold">
+            터치용 알파벳 버튼
+          </div>
+          <div
+            id="mobileKeypad"
+            class="grid grid-cols-7 gap-1 max-w-sm mx-auto"
+          ></div>
+        </div>
+      </div>
+    </main>
+
+    <footer
+      class="py-3 text-center text-xs text-gray-500 border-t border-slate-900"
+    >
+      AI B-Boy Dance Battle Studio • Web Audio & Canvas 2D
+    </footer>
+
+    <script>
+      /* =========================================================
+   1. 사운드 (Web Audio API)
+   ========================================================= */
+      let audioCtx = null;
+      let soundEnabled = true;
+      let beatInterval = null;
+
+      function initAudio() {
+        if (!audioCtx)
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      function toggleSound() {
+        soundEnabled = !soundEnabled;
+        document.getElementById("soundIcon").className = soundEnabled
+          ? "fa-solid fa-volume-high text-cyan-400"
+          : "fa-solid fa-volume-xmark text-gray-500";
+        document.getElementById("soundLabel").innerText = soundEnabled
+          ? "사운드 ON"
+          : "사운드 OFF";
+        if (soundEnabled && gameState.startsWith("PLAYING")) startHipHopBeat();
+        else stopHipHopBeat();
+      }
+
+      // 톤 하나를 재생하는 공통 함수
+      function playTone(type, freqStart, freqEnd, volume, duration) {
+        if (!soundEnabled) return;
+        initAudio();
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, now);
+        osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      function startHipHopBeat() {
+        if (!soundEnabled || beatInterval) return;
+        initAudio();
+        let step = 0;
+        beatInterval = setInterval(() => {
+          if (step === 0 || step === 8 || step === 10)
+            playTone("sine", 150, 30, 0.3, 0.12); // 킥
+          if (step === 4 || step === 12)
+            playTone("triangle", 300, 120, 0.15, 0.1); // 스네어 느낌
+          step = (step + 1) % 16;
+        }, 125);
+      }
+
+      function stopHipHopBeat() {
+        clearInterval(beatInterval);
+        beatInterval = null;
+      }
+
+      function playKeyHitSFX(isCorrect) {
+        if (isCorrect) playTone("sawtooth", 400, 1200, 0.15, 0.08);
+        else playTone("square", 150, 100, 0.2, 0.15);
+      }
+
+      function playSkillFinishSFX() {
+        playTone("triangle", 523, 1046, 0.25, 0.4);
+      }
+
+      /* =========================================================
+   2. 게임 상태
+   ========================================================= */
+      let gameState = "STOPPED"; // STOPPED, PLAYING_PLAYER, DANCING_PLAYER, PLAYING_AI, DANCING_AI, GAMEOVER
+      let currentRound = 1;
+      let playerScore = 0;
+      let aiScore = 0;
+
+      let targetKeys = [];
+      let currentKeyIndex = 0; // 지금까지 누른 키 개수
+      let keyDone = []; // 카드별로 눌렀는지 기록
+      let roundStartTime = 0;
+      let playerElapsedTime = 0;
+      let timerInterval = null;
+
+      const canvas = document.getElementById("stageCanvas");
+      const ctx = canvas.getContext("2d");
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      /* =========================================================
+   3. 비보이 동작 데이터
+   - 포즈 = 바닥 기준 좌표(dx, dy) 6개 (머리, 몸통, 왼손, 오른손, 왼발, 오른발)
+   - 키를 한 번 누를 때마다 콤보의 다음 포즈로 "딱" 바뀜
+   ========================================================= */
+      function P(head, torso, lHand, rHand, lFoot, rFoot) {
+        return [
+          head[0],
+          head[1],
+          torso[0],
+          torso[1],
+          lHand[0],
+          lHand[1],
+          rHand[0],
+          rHand[1],
+          lFoot[0],
+          lFoot[1],
+          rFoot[0],
+          rFoot[1],
+        ];
+      }
+
+      const STAND_POSE = P(
+        [0, -75],
+        [0, -45],
+        [-25, -35],
+        [25, -35],
+        [-15, 0],
+        [15, 0],
+      );
+
+      const COMBOS = [
+        {
+          name: "TOPROCK",
+          poses: [
+            P([-8, -76], [-5, -46], [-32, -58], [26, -38], [-26, 0], [8, -12]),
+            P([8, -76], [5, -46], [-26, -38], [32, -58], [-8, -12], [26, 0]),
+            P([-8, -72], [-5, -44], [-36, -44], [24, -64], [-30, 0], [10, -16]),
+            P([8, -72], [5, -44], [-24, -64], [36, -44], [-10, -16], [30, 0]),
+          ],
+        },
+        {
+          name: "POPPING",
+          poses: [
+            P([0, -78], [0, -46], [-32, -72], [32, -72], [-14, 0], [14, 0]),
+            P([0, -76], [0, -46], [-34, -30], [34, -30], [-18, 0], [18, 0]),
+            P([-6, -78], [-3, -46], [-20, -90], [22, -52], [-14, 0], [20, 0]),
+            P([6, -78], [3, -46], [-22, -52], [20, -90], [-20, 0], [14, 0]),
+          ],
+        },
+        {
+          name: "INDIAN STEP",
+          poses: [
+            P([0, -56], [0, -36], [-28, -22], [28, -22], [-22, 0], [22, -4]),
+            P([-5, -54], [-3, -34], [-30, -26], [26, -20], [-34, 0], [30, -26]),
+            P([0, -56], [0, -36], [-28, -22], [28, -22], [-22, -4], [22, 0]),
+            P([5, -54], [3, -34], [-26, -20], [30, -26], [-30, -26], [34, 0]),
+          ],
+        },
+        {
+          name: "6-STEP",
+          poses: [
+            P([0, -40], [0, -28], [-24, 0], [24, 0], [-46, -8], [38, -20]),
+            P([0, -40], [0, -28], [-24, 0], [24, 0], [-38, -24], [46, -6]),
+            P([0, -40], [0, -28], [-24, 0], [24, 0], [-18, -14], [30, -30]),
+            P([0, -40], [0, -28], [-24, 0], [24, 0], [34, -8], [-34, -26]),
+          ],
+        },
+        {
+          name: "COFFEE GRINDER",
+          poses: [
+            P([-18, -34], [0, -26], [-24, 0], [-4, 0], [52, -8], [34, -24]),
+            P([-18, -34], [0, -26], [-24, 0], [-4, 0], [30, -40], [52, -18]),
+            P([-18, -34], [0, -26], [-24, 0], [-4, 0], [-20, -38], [26, -46]),
+            P([-18, -34], [0, -26], [-24, 0], [-4, 0], [-44, -14], [-10, -42]),
+          ],
+        },
+        {
+          name: "WINDMILL",
+          poses: [
+            P([-30, -12], [-6, -14], [-32, -6], [12, -6], [46, -40], [56, -18]),
+            P([-30, -12], [-6, -14], [-32, -6], [12, -6], [10, -58], [44, -46]),
+            P(
+              [-30, -12],
+              [-6, -14],
+              [-32, -6],
+              [12, -6],
+              [-40, -44],
+              [-8, -56],
+            ),
+            P(
+              [-30, -12],
+              [-6, -14],
+              [-32, -6],
+              [12, -6],
+              [-52, -16],
+              [-44, -42],
+            ),
+          ],
+        },
+        {
+          name: "AIR FLARE",
+          poses: [
+            P([0, -44], [0, -32], [-20, -12], [20, -12], [62, -46], [-58, -20]),
+            P([0, -44], [0, -32], [-20, -12], [20, -12], [46, -70], [-48, -14]),
+            P([0, -44], [0, -32], [-20, -12], [20, -12], [-62, -46], [58, -20]),
+            P([0, -44], [0, -32], [-20, -12], [20, -12], [-46, -70], [48, -14]),
+          ],
+        },
+        {
+          name: "HEADSPIN",
+          poses: [
+            P([0, -10], [0, -44], [-30, -28], [30, -28], [-34, -80], [34, -72]),
+            P([0, -10], [0, -44], [-30, -28], [30, -28], [-10, -86], [10, -86]),
+            P([0, -10], [0, -44], [-30, -28], [30, -28], [-40, -72], [40, -80]),
+            P([0, -10], [0, -44], [-30, -28], [30, -28], [-22, -88], [22, -78]),
+          ],
+        },
+        {
+          name: "HANDSTAND",
+          poses: [
+            P([0, -42], [0, -64], [-10, 0], [10, 0], [-8, -100], [8, -100]),
+            P([0, -42], [0, -64], [-10, 0], [10, 0], [-30, -90], [30, -90]),
+            P([0, -42], [0, -64], [-10, 0], [10, 0], [-4, -96], [26, -84]),
+            P([0, -42], [0, -64], [-10, 0], [10, 0], [-26, -84], [4, -96]),
+          ],
+        },
+        {
+          name: "FREEZE",
+          poses: [
+            P([-10, -12], [0, -25], [-18, -5], [15, -5], [20, -50], [35, -35]),
+            P([-14, -20], [-6, -34], [-20, -4], [14, -4], [26, -30], [10, -56]),
+            P([0, -42], [0, -64], [-10, 0], [10, 0], [-14, -96], [26, -70]),
+            P([-12, -16], [0, -30], [-22, -6], [6, -4], [30, -62], [44, -44]),
+          ],
+        },
+      ];
+
+      /* =========================================================
+   4. 댄서 객체
+   ========================================================= */
+      const playerDancer = {
+        x: 0,
+        y: 0,
+        color: "#06b6d4",
+        capColor: "#38bdf8",
+        pantsColor: "#1e293b",
+        shoesColor: "#22d3ee",
+        action: "IDLE",
+        animTime: 0,
+        pose: STAND_POSE.slice(),
+        target: STAND_POSE.slice(),
+        combo: null,
+        poseIndex: 0,
+        hit: 0,
+      };
+      const aiDancer = {
+        x: 0,
+        y: 0,
+        color: "#ec4899",
+        capColor: "#f43f5e",
+        pantsColor: "#0f172a",
+        shoesColor: "#fb7185",
+        action: "IDLE",
+        animTime: 0,
+        pose: STAND_POSE.slice(),
+        target: STAND_POSE.slice(),
+        combo: null,
+        poseIndex: 0,
+        hit: 0,
+      };
+
+      // 키를 누를 때마다 호출: 콤보의 다음 포즈로 딱 바뀜
+      function danceHit(dancer, moveTextId) {
+        // 콤보를 다 췄거나 처음이면 새 콤보 선택 (직전 콤보와 다른 것)
+        if (!dancer.combo || dancer.poseIndex >= dancer.combo.poses.length) {
+          let next;
+          do {
+            next = COMBOS[Math.floor(Math.random() * COMBOS.length)];
+          } while (next === dancer.combo);
+          dancer.combo = next;
+          dancer.poseIndex = 0;
+        }
+        dancer.target = dancer.combo.poses[dancer.poseIndex];
+        dancer.poseIndex++;
+        dancer.action = "BEAT";
+        dancer.hit = 1; // 박자 바운스
+        createParticles(dancer.x, dancer.y, dancer.color, 6);
+        document.getElementById(moveTextId).innerText =
+          `${dancer.combo.name} ${dancer.poseIndex}/${dancer.combo.poses.length}`;
+      }
+
+      /* =========================================================
+   5. 파티클
+   ========================================================= */
+      let particles = [];
+      function createParticles(x, y, color, count = 12) {
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8 - 2,
+            radius: Math.random() * 4 + 2,
+            color: color,
+            alpha: 1,
+            life: Math.random() * 20 + 20,
+          });
+        }
+      }
+
+      /* =========================================================
+   6. 라운드 / 키 규칙
+   ========================================================= */
+      // 기존 키 개수의 2배: 라운드 1~2 = 6개, 3~4 = 8개 ... 10라운드(파이널) = 20개
+      function getKeyCountForRound(round) {
+        if (round === 10) return 20;
+        return (3 + Math.floor((round - 1) / 2)) * 2;
+      }
+
+      function generateRandomKeys(count) {
+        const alphabets = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const keys = [];
+        for (let i = 0; i < count; i++) {
+          keys.push(
+            alphabets.charAt(Math.floor(Math.random() * alphabets.length)),
+          );
+        }
+        return keys;
+      }
+
+      function getSkillDetails(timeSeconds, keyCount) {
+        const avg = timeSeconds / keyCount;
+        if (avg < 0.35)
+          return {
+            rating: "LEGENDARY!",
+            name: "CRAZY HEADSPIN & FREEZE",
+            action: "HEADSPIN",
+            multiplier: 2.2,
+            color: "#facc15",
+          };
+        if (avg < 0.55)
+          return {
+            rating: "PERFECT!",
+            name: "POWER FLARE COMBO",
+            action: "FLARE",
+            multiplier: 1.8,
+            color: "#38bdf8",
+          };
+        if (avg < 0.85)
+          return {
+            rating: "GREAT!",
+            name: "DYNAMIC WINDMILL",
+            action: "WINDMILL",
+            multiplier: 1.4,
+            color: "#4ade80",
+          };
+        if (avg < 1.25)
+          return {
+            rating: "GOOD!",
+            name: "STYLE FOOTWORK 6-STEP",
+            action: "FOOTWORK",
+            multiplier: 1.1,
+            color: "#a855f7",
+          };
+        return {
+          rating: "COOL!",
+          name: "BABY FREEZE POSE",
+          action: "FREEZE",
+          multiplier: 0.8,
+          color: "#e2e8f0",
+        };
+      }
+
+      /* =========================================================
+   7. 키 카드 - 화면 아무 곳에나 랜덤 배치
+   ========================================================= */
+      // 겹치지 않게 랜덤 위치를 뽑는다. 위쪽 30%는 비워두고, 댄서 몸이 있는 곳도 피한다.
+      function generateKeyPositions(count, W, H, cardW, cardH) {
+        const positions = [];
+        const minX = cardW;
+        const maxX = W - cardW;
+        const minY = H * 0.3;
+        const maxY = H * 0.9 - cardH / 2;
+        const floorY = H * 0.72;
+        const dancerXs = [W * 0.32, W * 0.68];
+        let minDist = cardW * 1.4;
+
+        for (let i = 0; i < count; i++) {
+          let placed = false;
+          for (let attempt = 0; attempt < 300 && !placed; attempt++) {
+            const x = minX + Math.random() * (maxX - minX);
+            const y = minY + Math.random() * (maxY - minY);
+            const farEnough = positions.every(
+              (p) => Math.hypot(p.x - x, p.y - y) >= minDist,
+            );
+            const onDancer =
+              dancerXs.some((dx) => Math.abs(x - dx) < 55) &&
+              y > floorY - 115 &&
+              y < floorY + 10;
+            if (farEnough && !onDancer) {
+              positions.push({ x: x, y: y });
+              placed = true;
+            }
+            if (attempt % 100 === 99) minDist *= 0.8; // 자리가 없으면 간격을 조금씩 줄임
+          }
+          if (!placed) {
+            positions.push({
+              x: minX + Math.random() * (maxX - minX),
+              y: minY + Math.random() * (maxY - minY),
+            });
+          }
+        }
+        return positions;
+      }
+
+      function renderKeyCards() {
+        const layer = document.getElementById("keyLayer");
+        layer.innerHTML = "";
+
+        const W = canvas.width;
+        const H = canvas.height;
+        const cardW = W < 500 ? 34 : 56;
+        const cardH = Math.round(cardW * 1.15);
+        const positions = generateKeyPositions(
+          targetKeys.length,
+          W,
+          H,
+          cardW,
+          cardH,
+        );
+
+        targetKeys.forEach((key, index) => {
+          const card = document.createElement("div");
+          card.id = `key-card-${index}`;
+          card.className =
+            "key-card glass-card border-2 border-slate-700 rounded-2xl flex flex-col items-center justify-center font-arcade font-black text-cyan-300 shadow-md";
+          card.style.cssText =
+            `position:absolute; left:${(positions[index].x / W) * 100}%; top:${(positions[index].y / H) * 100}%;` +
+            `margin-left:-${cardW / 2}px; margin-top:-${cardH / 2}px; width:${cardW}px; height:${cardH}px; font-size:${Math.round(cardW * 0.42)}px;`;
+          card.innerHTML = `<span>${key}</span>`;
+          layer.appendChild(card);
+        });
+
+        document.getElementById("keyCountBadge").innerText =
+          `${targetKeys.length}개`;
+      }
+
+      function setupMobileKeypad() {
+        const keypad = document.getElementById("mobileKeypad");
+        keypad.innerHTML = "";
+        "QWERTYUIOPASDFGHJKLZXCVBNM".split("").forEach((char) => {
+          const btn = document.createElement("button");
+          btn.className =
+            "py-2 rounded-lg bg-slate-800 active:bg-cyan-600 text-xs font-arcade font-bold text-gray-200 border border-slate-700";
+          btn.innerText = char;
+          btn.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            handleKeyPress(char);
+          });
+          btn.addEventListener("click", () => handleKeyPress(char));
+          keypad.appendChild(btn);
+        });
+      }
+
+      /* =========================================================
+   8. 게임 진행
+   ========================================================= */
+      const DESC_HTML =
+        "화면 곳곳에 흩어진 알파벳을 <b>순서 상관없이</b> 눌러 AI보다 멋진 비보잉을 선보이세요!<br>" +
+        "키를 누를 때마다 비보이가 박자에 맞춰 동작을 딱딱 바꿉니다.<br>" +
+        '<span class="text-amber-400 font-bold">키 개수 2배! 10라운드는 20키 + 2배 점수 피버!</span>';
+
+      document.getElementById("overlayDesc").innerHTML = DESC_HTML;
+
+      function startGame() {
+        document.getElementById("overlayScreen").classList.add("hidden");
+        initAudio();
+        currentRound = 1;
+        playerScore = 0;
+        aiScore = 0;
+        updateScoreboardHUD();
+        startHipHopBeat();
+        startPlayerTurn();
+      }
+
+      function restartGame() {
+        stopHipHopBeat();
+        clearInterval(timerInterval);
+        gameState = "STOPPED";
+        document.getElementById("keyLayer").innerHTML = "";
+        playerDancer.action = "IDLE";
+        aiDancer.action = "IDLE";
+        document.getElementById("overlayScreen").classList.remove("hidden");
+        document.getElementById("overlayTitle").innerText =
+          "B-BOY DANCE BATTLE";
+        document.getElementById("overlayTitle").className =
+          "font-graffiti text-3xl sm:text-5xl text-white mb-2";
+        document.getElementById("overlayDesc").innerHTML = DESC_HTML;
+        document.getElementById("startBtn").innerText = "START BATTLE";
+      }
+
+      function startPlayerTurn() {
+        gameState = "PLAYING_PLAYER";
+        currentKeyIndex = 0;
+
+        document
+          .getElementById("finalRoundBanner")
+          .classList.toggle("hidden", currentRound !== 10);
+
+        targetKeys = generateRandomKeys(getKeyCountForRound(currentRound));
+        keyDone = targetKeys.map(() => false);
+        renderKeyCards();
+
+        document.getElementById("turnBadge").innerText = "YOUR TURN!";
+        document.getElementById("turnBadge").className =
+          "px-3 py-0.5 rounded-full bg-cyan-950 border border-cyan-400 text-xs font-bold text-cyan-300 pulse-text";
+        document.getElementById("promptLabel").innerText =
+          "당신의 차례! 아무 키나 빠르게 누르세요:";
+
+        playerDancer.action = "TOPROCK"; // 첫 키를 누르기 전까지는 가볍게 스텝
+        aiDancer.action = "IDLE";
+
+        roundStartTime = performance.now();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          playerElapsedTime = (performance.now() - roundStartTime) / 1000;
+          document.getElementById("timerText").innerText =
+            `${playerElapsedTime.toFixed(2)}s`;
+        }, 30);
+      }
+
+      function handleKeyPress(pressedChar) {
+        if (gameState !== "PLAYING_PLAYER") return;
+        const pressed = pressedChar.toUpperCase();
+
+        // 아직 안 누른 카드 중에서 같은 글자를 찾는다 (순서 상관없음)
+        const foundIndex = targetKeys.findIndex(
+          (key, i) => key === pressed && !keyDone[i],
+        );
+
+        if (foundIndex !== -1) {
+          // 정답: 소리 + 카드 성공 표시 + 비보이 박자 동작
+          playKeyHitSFX(true);
+          danceHit(playerDancer, "playerMoveText");
+          keyDone[foundIndex] = true;
+          document
+            .getElementById(`key-card-${foundIndex}`)
+            .classList.add("success");
+
+          currentKeyIndex++;
+          if (currentKeyIndex >= targetKeys.length) {
+            finishPlayerTurn();
+          }
+        } else {
+          // 오답: 남아 있는 카드들이 흔들림
+          playKeyHitSFX(false);
+          keyDone.forEach((done, i) => {
+            if (done) return;
+            const card = document.getElementById(`key-card-${i}`);
+            card.classList.add("wrong");
+            setTimeout(() => card.classList.remove("wrong"), 300);
+          });
+        }
+      }
+
+      window.addEventListener("keydown", (e) => {
+        if (
+          gameState === "PLAYING_PLAYER" &&
+          e.key.length === 1 &&
+          /[a-zA-Z]/.test(e.key)
+        ) {
+          handleKeyPress(e.key.toUpperCase());
+        }
+      });
+
+      function finishPlayerTurn() {
+        clearInterval(timerInterval);
+        gameState = "DANCING_PLAYER";
+        playSkillFinishSFX();
+        setTimeout(() => {
+          document.getElementById("keyLayer").innerHTML = "";
+        }, 400);
+
+        const skill = getSkillDetails(playerElapsedTime, targetKeys.length);
+        const roundMultiplier = currentRound === 10 ? 2.0 : 1.0;
+        const speedBonus = Math.max(
+          100,
+          Math.floor(1000 - playerElapsedTime * 150),
+        );
+        const gainedScore = Math.floor(
+          (500 + speedBonus) * skill.multiplier * roundMultiplier,
+        );
+        playerScore += gainedScore;
+        updateScoreboardHUD();
+
+        // 마지막 피니시 기술
+        playerDancer.action = skill.action;
+        playerDancer.animTime = 0;
+        document.getElementById("playerMoveText").innerText =
+          `${skill.name} (+${gainedScore}pt)`;
+        showSkillRatingPopup(
+          skill.rating,
+          `${skill.name} (${playerElapsedTime.toFixed(2)}s)`,
+          skill.color,
+        );
+        createParticles(
+          canvas.width * 0.32,
+          canvas.height * 0.6,
+          skill.color,
+          30,
+        );
+
+        setTimeout(startAITurn, 2500);
+      }
+
+      function startAITurn() {
+        gameState = "PLAYING_AI";
+        document.getElementById("turnBadge").innerText = "AI DANCING...";
+        document.getElementById("turnBadge").className =
+          "px-3 py-0.5 rounded-full bg-pink-950 border border-pink-400 text-xs font-bold text-pink-300 pulse-text";
+        document.getElementById("promptLabel").innerText =
+          "AI가 비보잉 무브를 선보이는 중...";
+
+        playerDancer.action = "IDLE";
+        aiDancer.action = "TOPROCK";
+
+        // AI는 라운드가 올라갈수록 조금씩 빨라짐
+        const keyCount = getKeyCountForRound(currentRound);
+        const aiBaseSpeed = Math.max(0.35, 0.75 - currentRound * 0.03);
+        const aiTimePerKey = Math.max(
+          0.3,
+          aiBaseSpeed + (Math.random() - 0.2) * 0.3,
+        );
+        const aiTotalTime = aiTimePerKey * keyCount;
+
+        let aiCurrentKey = 0;
+        const aiInterval = setInterval(
+          () => {
+            aiCurrentKey++;
+            playKeyHitSFX(true);
+            danceHit(aiDancer, "aiMoveText"); // AI도 키를 누를 때마다 박자 동작
+            if (aiCurrentKey >= keyCount) {
+              clearInterval(aiInterval);
+              finishAITurn(aiTotalTime, keyCount);
+            }
+          },
+          (aiTotalTime * 1000) / keyCount,
+        );
+      }
+
+      function finishAITurn(aiTotalTime, keyCount) {
+        gameState = "DANCING_AI";
+        playSkillFinishSFX();
+
+        const skill = getSkillDetails(aiTotalTime, keyCount);
+        const roundMultiplier = currentRound === 10 ? 2.0 : 1.0;
+        const speedBonus = Math.max(100, Math.floor(1000 - aiTotalTime * 150));
+        const gainedScore = Math.floor(
+          (480 + speedBonus) * skill.multiplier * roundMultiplier,
+        );
+        aiScore += gainedScore;
+        updateScoreboardHUD();
+
+        aiDancer.action = skill.action;
+        aiDancer.animTime = 0;
+        document.getElementById("aiMoveText").innerText =
+          `${skill.name} (+${gainedScore}pt)`;
+        showSkillRatingPopup(
+          `AI: ${skill.rating}`,
+          `${skill.name} (${aiTotalTime.toFixed(2)}s)`,
+          "#ec4899",
+        );
+        createParticles(
+          canvas.width * 0.68,
+          canvas.height * 0.6,
+          "#ec4899",
+          30,
+        );
+
+        setTimeout(() => {
+          if (currentRound >= 10) {
+            endGame();
+          } else {
+            currentRound++;
+            updateScoreboardHUD();
+            startPlayerTurn();
+          }
+        }, 2500);
+      }
+
+      function endGame() {
+        gameState = "GAMEOVER";
+        stopHipHopBeat();
+        document.getElementById("overlayScreen").classList.remove("hidden");
+
+        const title = document.getElementById("overlayTitle");
+        const desc = document.getElementById("overlayDesc");
+
+        if (playerScore > aiScore) {
+          title.innerText = "🏆 VICTORY! CHAMPION!";
+          title.className =
+            "font-graffiti text-3xl sm:text-5xl text-amber-300 mb-2 glow-gold";
+          desc.innerHTML = `축하합니다! AI를 꺾고 최고 비보이가 되었습니다!<br><br><span class="text-cyan-400 font-bold text-lg">최종 점수: ${playerScore} PT</span> <span class="text-gray-400">(AI: ${aiScore} PT)</span>`;
+        } else if (playerScore < aiScore) {
+          title.innerText = "💀 DEFEAT...";
+          title.className =
+            "font-graffiti text-3xl sm:text-5xl text-pink-500 mb-2 glow-pink";
+          desc.innerHTML = `아쉽게도 AI가 더 멋진 무대를 선보였습니다.<br><br><span class="text-pink-400 font-bold text-lg">내 점수: ${playerScore} PT</span> <span class="text-gray-400">(AI: ${aiScore} PT)</span>`;
+        } else {
+          title.innerText = "🤝 DRAW MATCH!";
+          title.className =
+            "font-graffiti text-3xl sm:text-5xl text-cyan-400 mb-2";
+          desc.innerHTML = `동점입니다! 막상막하의 대결이었습니다!<br><br><span class="text-amber-400 font-bold text-lg">최종 점수: ${playerScore} PT</span>`;
+        }
+        document.getElementById("startBtn").innerText = "REMATCH (다시 도전)";
+      }
+
+      function updateScoreboardHUD() {
+        document.getElementById("playerScore").innerText =
+          playerScore.toLocaleString();
+        document.getElementById("aiScore").innerText = aiScore.toLocaleString();
+        document.getElementById("roundNumber").innerText = currentRound;
+      }
+
+      function showSkillRatingPopup(ratingText, moveNameText, colorHex) {
+        const box = document.getElementById("skillRatingBox");
+        document.getElementById("skillRatingText").innerText = ratingText;
+        document.getElementById("skillRatingText").style.color = colorHex;
+        document.getElementById("skillMoveName").innerText = moveNameText;
+
+        box.className =
+          "absolute inset-0 flex items-center justify-center z-20 transition-all duration-300 scale-100 opacity-100 pointer-events-none";
+        setTimeout(() => {
+          box.className =
+            "opacity-0 pointer-events-none absolute inset-0 flex items-center justify-center z-20 transition-all duration-300 scale-50";
+        }, 1800);
+      }
+
+      /* =========================================================
+   9. 그리기
+   ========================================================= */
+      function renderStage() {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // 배경
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, "#030712");
+        bg.addColorStop(0.6, "#0f172a");
+        bg.addColorStop(1, "#1e1b4b");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        // 벽돌 줄무늬
+        ctx.strokeStyle = "rgba(255,255,255,0.03)";
+        ctx.lineWidth = 1;
+        for (let y = 0; y < h * 0.75; y += 20) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // 벽 낙서
+        ctx.font = '42px "Permanent Marker", cursive';
+        ctx.fillStyle = "rgba(6,182,212,0.08)";
+        ctx.fillText("STREET BATTLE", w * 0.08, h * 0.25);
+        ctx.fillStyle = "rgba(236,72,153,0.08)";
+        ctx.fillText("CYBER JAM", w * 0.6, h * 0.28);
+
+        // 바닥
+        const floorY = h * 0.72;
+        const floorGrad = ctx.createLinearGradient(0, floorY, 0, h);
+        floorGrad.addColorStop(0, "#111827");
+        floorGrad.addColorStop(1, "#030712");
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, floorY, w, h - floorY);
+
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#38bdf8";
+        ctx.strokeStyle = "#0284c7";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, floorY);
+        ctx.lineTo(w, floorY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 조명 & 붐박스
+        drawSpotlight(w * 0.3, floorY, "#06b6d4", gameState.includes("PLAYER"));
+        drawSpotlight(w * 0.7, floorY, "#ec4899", gameState.includes("AI"));
+        drawBoombox(w * 0.08, floorY - 30);
+        drawBoombox(w * 0.88, floorY - 30);
+
+        // 댄서
+        playerDancer.x = w * 0.32;
+        playerDancer.y = floorY;
+        aiDancer.x = w * 0.68;
+        aiDancer.y = floorY;
+        drawBBoyDancer(playerDancer);
+        drawBBoyDancer(aiDancer);
+
+        updateAndDrawParticles();
+      }
+
+      function drawSpotlight(x, floorY, color, isActive) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x - 30, 0);
+        ctx.lineTo(x + 30, 0);
+        ctx.lineTo(x + 100, floorY);
+        ctx.lineTo(x - 100, floorY);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 0, 0, floorY);
+        grad.addColorStop(0, color);
+        grad.addColorStop(1, "transparent");
+        ctx.fillStyle = grad;
+        ctx.globalAlpha = isActive ? 0.25 : 0.08;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawBoombox(x, y) {
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(x - 30, y - 20, 60, 40);
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.arc(x - 15, y, 10, 0, Math.PI * 2);
+        ctx.arc(x + 15, y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawBBoyDancer(dancer) {
+        ctx.save();
+        dancer.animTime += 0.08;
+        const t = dancer.animTime;
+        const x = dancer.x;
+        const y = dancer.y;
+
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = dancer.color;
+
+        // 기본 자세 (IDLE)
+        let head = { x: x, y: y - 75 };
+        let torso = { x: x, y: y - 45 };
+        let lHand = { x: x - 25, y: y - 35 };
+        let rHand = { x: x + 25, y: y - 35 };
+        let lFoot = { x: x - 15, y: y };
+        let rFoot = { x: x + 15, y: y };
+
+        switch (dancer.action) {
+          case "BEAT": {
+            // 현재 포즈가 목표 포즈로 빠르게 따라감 → 키를 누를 때마다 "딱" 바뀌는 느낌
+            for (let i = 0; i < 12; i++) {
+              dancer.pose[i] += (dancer.target[i] - dancer.pose[i]) * 0.35;
+            }
+            dancer.hit *= 0.85;
+            const bp = dancer.pose;
+            const hop = dancer.hit * 8 + Math.sin(t * 4) * 1.2; // 박자 바운스 + 살짝 숨쉬기
+            head = { x: x + bp[0], y: y + bp[1] - hop };
+            torso = { x: x + bp[2], y: y + bp[3] - hop };
+            lHand = { x: x + bp[4], y: y + bp[5] - hop * 0.5 };
+            rHand = { x: x + bp[6], y: y + bp[7] - hop * 0.5 };
+            lFoot = { x: x + bp[8], y: y + bp[9] - hop * 0.3 };
+            rFoot = { x: x + bp[10], y: y + bp[11] - hop * 0.3 };
+            break;
+          }
+          case "TOPROCK": {
+            const side = Math.sin(t * 3) * 20;
+            head = {
+              x: x + side * 0.3,
+              y: y - 75 + Math.abs(Math.sin(t * 6)) * 8,
+            };
+            torso = { x: x + side * 0.2, y: y - 45 };
+            lHand = { x: x - 30 - side, y: y - 50 + Math.cos(t * 3) * 15 };
+            rHand = { x: x + 30 - side, y: y - 50 - Math.cos(t * 3) * 15 };
+            lFoot = { x: x - 20 + side, y: y };
+            rFoot = { x: x + 20 - side, y: y };
+            break;
+          }
+          case "FOOTWORK": {
+            const sx = Math.cos(t * 5) * 45;
+            const sy = Math.sin(t * 5) * 15;
+            head = { x: x, y: y - 35 };
+            torso = { x: x, y: y - 25 };
+            lHand = { x: x - 25, y: y - 5 };
+            rHand = { x: x + 25, y: y - 5 };
+            lFoot = { x: x + sx, y: y - 5 + sy };
+            rFoot = { x: x - sx, y: y - 5 - sy };
+            break;
+          }
+          case "WINDMILL": {
+            const a = t * 6;
+            head = { x: x, y: y - 15 };
+            torso = { x: x, y: y - 15 };
+            lHand = { x: x - 25 + Math.cos(a) * 10, y: y - 10 };
+            rHand = { x: x + 25 - Math.cos(a) * 10, y: y - 10 };
+            lFoot = { x: x + Math.cos(a) * 50, y: y - 30 + Math.sin(a) * 35 };
+            rFoot = { x: x - Math.cos(a) * 50, y: y - 30 - Math.sin(a) * 35 };
+            break;
+          }
+          case "FLARE": {
+            const a = t * 7;
+            head = { x: x, y: y - 40 };
+            torso = { x: x, y: y - 30 };
+            lHand = { x: x - 20, y: y - 10 };
+            rHand = { x: x + 20, y: y - 10 };
+            lFoot = { x: x + Math.cos(a) * 60, y: y - 40 + Math.sin(a) * 30 };
+            rFoot = {
+              x: x + Math.cos(a + Math.PI) * 60,
+              y: y - 40 + Math.sin(a + Math.PI) * 30,
+            };
+            break;
+          }
+          case "HEADSPIN": {
+            const a = t * 12;
+            head = { x: x, y: y - 10 };
+            torso = { x: x, y: y - 45 };
+            lHand = { x: x - 30, y: y - 30 };
+            rHand = { x: x + 30, y: y - 30 };
+            lFoot = { x: x + Math.cos(a) * 45, y: y - 75 };
+            rFoot = { x: x - Math.cos(a) * 45, y: y - 75 };
+            break;
+          }
+          case "FREEZE": {
+            head = { x: x - 10, y: y - 12 };
+            torso = { x: x, y: y - 25 };
+            lHand = { x: x - 18, y: y - 5 };
+            rHand = { x: x + 15, y: y - 5 };
+            lFoot = { x: x + 20, y: y - 50 };
+            rFoot = { x: x + 35, y: y - 35 };
+            break;
+          }
+          default: {
+            const bounce = Math.sin(t * 3) * 4;
+            head.y += bounce;
+            torso.y += bounce;
+            lHand.y += bounce;
+            rHand.y += bounce;
+          }
+        }
+
+        // 다리
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = dancer.pantsColor;
+        ctx.beginPath();
+        ctx.moveTo(torso.x, torso.y);
+        ctx.lineTo(lFoot.x, lFoot.y);
+        ctx.moveTo(torso.x, torso.y);
+        ctx.lineTo(rFoot.x, rFoot.y);
+        ctx.stroke();
+
+        // 신발
+        ctx.fillStyle = dancer.shoesColor;
+        ctx.beginPath();
+        ctx.arc(lFoot.x, lFoot.y, 6, 0, Math.PI * 2);
+        ctx.arc(rFoot.x, rFoot.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 팔
+        ctx.strokeStyle = dancer.color;
+        ctx.beginPath();
+        ctx.moveTo(torso.x, torso.y);
+        ctx.lineTo(lHand.x, lHand.y);
+        ctx.moveTo(torso.x, torso.y);
+        ctx.lineTo(rHand.x, rHand.y);
+        ctx.stroke();
+
+        // 몸통
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(torso.x, torso.y);
+        ctx.lineTo(head.x, head.y);
+        ctx.stroke();
+
+        // 머리 + 모자
+        ctx.fillStyle = dancer.color;
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = dancer.capColor;
+        ctx.beginPath();
+        ctx.arc(head.x, head.y - 3, 13, Math.PI, 0);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function updateAndDrawParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= 1 / p.life;
+          if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function animationLoop() {
+        renderStage();
+        requestAnimationFrame(animationLoop);
+      }
+
+      window.onload = function () {
+        resizeCanvas();
+        setupMobileKeypad();
+        animationLoop();
+      };
+    </script>
+  </body>
+</html>
